@@ -83,7 +83,7 @@
           await navigator.bluetooth.requestDevice({
             filters: [
               {
-                name: "HikingSensor"
+                name: "LEDTest"
               }
             ],
             optionalServices: [
@@ -107,7 +107,7 @@
           );
 
         statusText.textContent =
-          "Connected to HikingSensor";
+          "Connected to LEDTest";
       }
       catch (error) {
         console.error(error);
