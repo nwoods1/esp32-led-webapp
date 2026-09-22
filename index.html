@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <title>ESP32 LED Controller</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      text-align: center;
+    }
+
+    button {
+      display: block;
+      width: 220px;
+      padding: 16px;
+      margin: 15px auto;
+      font-size: 18px;
+    }
+
+    #status {
+      margin: 20px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>ESP32 LED</h1>
+
+  <p id="status">
+    Not connected
+  </p>
+
+  <button id="connect">
+    Connect to ESP32
+  </button>
+
+  <button id="on">
+    Turn LED ON
+  </button>
+
+  <button id="off">
+    Turn LED OFF
+  </button>
+
+  <script>
+    const SERVICE_UUID =
+      "12345678-1234-1234-1234-1234567890ab";
+
+    const CHARACTERISTIC_UUID =
+      "abcdefab-1234-5678-1234-abcdefabcdef";
+
+    let characteristic = null;
+
+    const statusText =
+      document.getElementById("status");
+
+    document
+      .getElementById("connect")
+      .addEventListener("click", connectToESP32);
+
+    document
+      .getElementById("on")
+      .addEventListener("click", () => sendCommand("1"));
+
+    document
+      .getElementById("off")
+      .addEventListener("click", () => sendCommand("0"));
+
+    async function connectToESP32() {
+      try {
+        statusText.textContent = "Searching...";
+
+        const device =
+          await navigator.bluetooth.requestDevice({
+            filters: [
+              {
+                name: "HikingSensor"
+              }
+            ],
+            optionalServices: [
+              SERVICE_UUID
+            ]
+          });
+
+        statusText.textContent = "Connecting...";
+
+        const server =
+          await device.gatt.connect();
+
+        const service =
+          await server.getPrimaryService(
+            SERVICE_UUID
+          );
+
+        characteristic =
+          await service.getCharacteristic(
+            CHARACTERISTIC_UUID
+          );
+
+        statusText.textContent =
+          "Connected to HikingSensor";
+      }
+      catch (error) {
+        console.error(error);
+
+        statusText.textContent =
+          "Connection failed: " + error.message;
+      }
+    }
+
+    async function sendCommand(command) {
+      if (!characteristic) {
+        statusText.textContent =
+          "Connect to ESP32 first";
+        return;
+      }
+
+      const data =
+        new TextEncoder().encode(command);
+
+      await characteristic.writeValue(data);
+
+      if (command === "1") {
+        statusText.textContent =
+          "LED turned ON";
+      }
+      else {
+        statusText.textContent =
+          "LED turned OFF";
+      }
+    }
+  </script>
+
+</body>
+</html>
