@@ -35,7 +35,7 @@
     }
 
     .container {
-      max-width: 500px;
+      max-width: 600px;
       margin: auto;
     }
 
@@ -49,6 +49,15 @@
     .value {
       font-size: 22px;
       margin: 10px 0;
+    }
+
+    canvas {
+      width: 100%;
+      max-width: 520px;
+      height: 240px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: white;
     }
   </style>
 </head>
@@ -97,6 +106,21 @@
       </div>
     </div>
 
+    <div class="section">
+      <h2>Step Impact</h2>
+
+      <canvas
+        id="impactChart"
+        width="520"
+        height="240"
+      ></canvas>
+
+      <div class="value">
+        Current impact:
+        <span id="impact">0.00</span> g
+      </div>
+    </div>
+
   </div>
 
 
@@ -116,6 +140,20 @@
       document.getElementById("connect");
 
 
+    const canvas =
+      document.getElementById("impactChart");
+
+    const ctx =
+      canvas.getContext("2d");
+
+
+    const impactData = [];
+
+    const MAX_POINTS = 100;
+
+    const MAX_G = 3;
+
+
     connectButton.addEventListener(
       "click",
       connectToESP32
@@ -130,16 +168,15 @@
           "Searching for Bluetooth devices...";
 
 
-        // IMPORTANT:
-        // Show all nearby BLE devices instead of
-        // filtering by the ESP32 name.
         const device =
           await navigator.bluetooth.requestDevice({
+
             acceptAllDevices: true,
 
             optionalServices: [
               SERVICE_UUID
             ]
+
           });
 
 
@@ -179,12 +216,6 @@
         statusText.textContent =
           "Connected to " + deviceName;
 
-
-        console.log(
-          "Connected device:",
-          deviceName
-        );
-
       }
 
       catch (error) {
@@ -206,8 +237,6 @@
         event.target.value;
 
 
-      // ESP32 should send 12 bytes:
-      // 6 signed 16-bit integers
       if (data.byteLength < 12) {
 
         console.log(
@@ -216,11 +245,12 @@
         );
 
         return;
+
       }
 
 
       // -----------------------
-      // Acceleration
+      // Read acceleration
       // -----------------------
 
       const ax =
@@ -234,7 +264,7 @@
 
 
       // -----------------------
-      // Angles
+      // Read angles
       // -----------------------
 
       const angleX =
@@ -248,7 +278,7 @@
 
 
       // -----------------------
-      // Update webpage
+      // Update displayed values
       // -----------------------
 
       document.getElementById("ax").textContent =
@@ -269,7 +299,251 @@
 
       document.getElementById("angleZ").textContent =
         angleZ.toFixed(2);
+
+
+      // -----------------------
+      // Calculate step impact
+      // -----------------------
+
+      const accelerationMagnitude =
+        Math.sqrt(
+          ax * ax +
+          ay * ay +
+          az * az
+        );
+
+
+      // Remove Earth's constant 1g gravity
+      const impact =
+        Math.abs(
+          accelerationMagnitude - 1.0
+        );
+
+
+      document.getElementById("impact").textContent =
+        impact.toFixed(2);
+
+
+      // Add new graph value
+      impactData.push(
+        impact
+      );
+
+
+      // Only keep most recent values
+      if (
+        impactData.length >
+        MAX_POINTS
+      ) {
+
+        impactData.shift();
+
+      }
+
+
+      drawImpactGraph();
+
     }
+
+
+    function drawImpactGraph() {
+
+      const width =
+        canvas.width;
+
+      const height =
+        canvas.height;
+
+
+      const leftPadding = 45;
+      const rightPadding = 15;
+      const topPadding = 15;
+      const bottomPadding = 30;
+
+
+      const graphWidth =
+        width -
+        leftPadding -
+        rightPadding;
+
+      const graphHeight =
+        height -
+        topPadding -
+        bottomPadding;
+
+
+      // Clear graph
+      ctx.clearRect(
+        0,
+        0,
+        width,
+        height
+      );
+
+
+      // White background
+      ctx.fillStyle =
+        "#ffffff";
+
+      ctx.fillRect(
+        0,
+        0,
+        width,
+        height
+      );
+
+
+      // -----------------------
+      // Grid
+      // -----------------------
+
+      ctx.strokeStyle =
+        "#dddddd";
+
+      ctx.lineWidth = 1;
+
+      ctx.font =
+        "12px Arial";
+
+      ctx.fillStyle =
+        "#555555";
+
+
+      for (
+        let g = 0;
+        g <= MAX_G;
+        g += 0.5
+      ) {
+
+        const y =
+          topPadding +
+          graphHeight -
+          (g / MAX_G) *
+          graphHeight;
+
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+          leftPadding,
+          y
+        );
+
+        ctx.lineTo(
+          width - rightPadding,
+          y
+        );
+
+        ctx.stroke();
+
+
+        ctx.fillText(
+          g.toFixed(1) + "g",
+          5,
+          y + 4
+        );
+
+      }
+
+
+      // -----------------------
+      // X axis label
+      // -----------------------
+
+      ctx.fillStyle =
+        "#555555";
+
+      ctx.font =
+        "12px Arial";
+
+      ctx.fillText(
+        "Older",
+        leftPadding,
+        height - 8
+      );
+
+      ctx.fillText(
+        "Now",
+        width - 40,
+        height - 8
+      );
+
+
+      // -----------------------
+      // Draw impact line
+      // -----------------------
+
+      if (
+        impactData.length < 2
+      ) {
+        return;
+      }
+
+
+      ctx.beginPath();
+
+      ctx.strokeStyle =
+        "#2563eb";
+
+      ctx.lineWidth = 3;
+
+
+      impactData.forEach(
+        (value, index) => {
+
+          const x =
+            leftPadding +
+            (index /
+              (MAX_POINTS - 1)) *
+            graphWidth;
+
+
+          const clampedValue =
+            Math.min(
+              value,
+              MAX_G
+            );
+
+
+          const y =
+            topPadding +
+            graphHeight -
+            (clampedValue /
+              MAX_G) *
+            graphHeight;
+
+
+          if (
+            index === 0
+          ) {
+
+            ctx.moveTo(
+              x,
+              y
+            );
+
+          }
+
+          else {
+
+            ctx.lineTo(
+              x,
+              y
+            );
+
+          }
+
+        }
+      );
+
+
+      ctx.stroke();
+
+    }
+
+
+    // Draw empty graph immediately
+    drawImpactGraph();
 
   </script>
 
