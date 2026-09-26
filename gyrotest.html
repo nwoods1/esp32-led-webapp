@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
 
@@ -9,14 +8,14 @@
     content="width=device-width, initial-scale=1.0"
   />
 
-  <title>MPU6050 Monitor</title>
+  <title>Gyro Test</title>
 
   <style>
     body {
       font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 25px;
       background: #f5f5f5;
+      text-align: center;
+      padding: 30px;
     }
 
     h1 {
@@ -25,13 +24,14 @@
 
     #status {
       font-weight: bold;
-      margin: 15px;
+      margin-bottom: 20px;
     }
 
     button {
-      padding: 15px 25px;
+      padding: 14px 24px;
       font-size: 18px;
-      margin: 15px;
+      cursor: pointer;
+      margin-bottom: 25px;
     }
 
     .container {
@@ -42,13 +42,13 @@
     .section {
       background: white;
       padding: 20px;
-      margin-top: 20px;
+      margin-bottom: 20px;
       border-radius: 12px;
     }
 
     .value {
-      font-size: 24px;
-      margin: 12px;
+      font-size: 22px;
+      margin: 10px 0;
     }
   </style>
 </head>
@@ -59,9 +59,7 @@
 
     <h1>MPU6050 Live Data</h1>
 
-    <p id="status">
-      Not connected
-    </p>
+    <p id="status">Not connected</p>
 
     <button id="connect">
       Connect to ESP32
@@ -105,6 +103,7 @@
 
   </div>
 
+
   <script>
 
     const SERVICE_UUID =
@@ -113,57 +112,75 @@
     const CHARACTERISTIC_UUID =
       "abcdefab-1234-5678-1234-abcdefabcdef";
 
+
     const statusText =
       document.getElementById("status");
 
-    document
-      .getElementById("connect")
-      .addEventListener("click", connectToESP32);
+    const connectButton =
+      document.getElementById("connect");
+
+
+    connectButton.addEventListener(
+      "click",
+      connectToESP32
+    );
 
 
     async function connectToESP32() {
 
       try {
 
-        statusText.textContent = "Searching...";
+        statusText.textContent =
+          "Searching for ESP32...";
+
 
         const device =
           await navigator.bluetooth.requestDevice({
+
             filters: [
               {
-                name: "MPU6050"
+                name: "LEDTest"
               }
             ],
+
             optionalServices: [
               SERVICE_UUID
             ]
+
           });
 
-        statusText.textContent = "Connecting...";
+
+        statusText.textContent =
+          "Connecting...";
+
 
         const server =
           await device.gatt.connect();
+
 
         const service =
           await server.getPrimaryService(
             SERVICE_UUID
           );
 
+
         const characteristic =
           await service.getCharacteristic(
             CHARACTERISTIC_UUID
           );
 
-        // Start receiving notifications
+
         await characteristic.startNotifications();
+
 
         characteristic.addEventListener(
           "characteristicvaluechanged",
           handleSensorData
         );
 
+
         statusText.textContent =
-          "Connected to MPU6050";
+          "Connected to ESP32";
 
       }
 
@@ -172,7 +189,8 @@
         console.error(error);
 
         statusText.textContent =
-          "Connection failed: " + error.message;
+          "Connection failed: " +
+          error.message;
 
       }
 
@@ -181,37 +199,38 @@
 
     function handleSensorData(event) {
 
-      const data = event.target.value;
+      const data =
+        event.target.value;
 
-      /*
-        ESP32 sends 6 signed 16-bit integers:
 
-        0: acceleration X × 1000
-        1: acceleration Y × 1000
-        2: acceleration Z × 1000
+      if (data.byteLength < 12) {
+        console.log(
+          "Unexpected packet length:",
+          data.byteLength
+        );
 
-        3: angle X × 100
-        4: angle Y × 100
-        5: angle Z × 100
-      */
+        return;
+      }
+
 
       const ax =
-        data.getInt16(0, true) / 1000;
+        data.getInt16(0, true) / 1000.0;
 
       const ay =
-        data.getInt16(2, true) / 1000;
+        data.getInt16(2, true) / 1000.0;
 
       const az =
-        data.getInt16(4, true) / 1000;
+        data.getInt16(4, true) / 1000.0;
+
 
       const angleX =
-        data.getInt16(6, true) / 100;
+        data.getInt16(6, true) / 100.0;
 
       const angleY =
-        data.getInt16(8, true) / 100;
+        data.getInt16(8, true) / 100.0;
 
       const angleZ =
-        data.getInt16(10, true) / 100;
+        data.getInt16(10, true) / 100.0;
 
 
       document.getElementById("ax").textContent =
@@ -238,5 +257,4 @@
   </script>
 
 </body>
-
 </html>
