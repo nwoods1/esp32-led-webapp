@@ -66,7 +66,6 @@
     </button>
 
     <div class="section">
-
       <h2>Acceleration</h2>
 
       <div class="value">
@@ -80,11 +79,9 @@
       <div class="value">
         Z: <span id="az">0.000</span> g
       </div>
-
     </div>
 
     <div class="section">
-
       <h2>Relative Angle</h2>
 
       <div class="value">
@@ -98,7 +95,6 @@
       <div class="value">
         Z: <span id="angleZ">0.00</span>°
       </div>
-
     </div>
 
   </div>
@@ -131,27 +127,28 @@
       try {
 
         statusText.textContent =
-          "Searching for ESP32...";
+          "Searching for Bluetooth devices...";
 
 
+        // IMPORTANT:
+        // Show all nearby BLE devices instead of
+        // filtering by the ESP32 name.
         const device =
           await navigator.bluetooth.requestDevice({
-
-            filters: [
-              {
-                name: "GyroTest"
-              }
-            ],
+            acceptAllDevices: true,
 
             optionalServices: [
               SERVICE_UUID
             ]
-
           });
 
 
+        const deviceName =
+          device.name || "Unknown device";
+
+
         statusText.textContent =
-          "Connecting...";
+          "Connecting to " + deviceName + "...";
 
 
         const server =
@@ -180,7 +177,13 @@
 
 
         statusText.textContent =
-          "Connected to ESP32";
+          "Connected to " + deviceName;
+
+
+        console.log(
+          "Connected device:",
+          deviceName
+        );
 
       }
 
@@ -203,7 +206,10 @@
         event.target.value;
 
 
+      // ESP32 should send 12 bytes:
+      // 6 signed 16-bit integers
       if (data.byteLength < 12) {
+
         console.log(
           "Unexpected packet length:",
           data.byteLength
@@ -212,6 +218,10 @@
         return;
       }
 
+
+      // -----------------------
+      // Acceleration
+      // -----------------------
 
       const ax =
         data.getInt16(0, true) / 1000.0;
@@ -223,6 +233,10 @@
         data.getInt16(4, true) / 1000.0;
 
 
+      // -----------------------
+      // Angles
+      // -----------------------
+
       const angleX =
         data.getInt16(6, true) / 100.0;
 
@@ -232,6 +246,10 @@
       const angleZ =
         data.getInt16(10, true) / 100.0;
 
+
+      // -----------------------
+      // Update webpage
+      // -----------------------
 
       document.getElementById("ax").textContent =
         ax.toFixed(3);
@@ -251,7 +269,6 @@
 
       document.getElementById("angleZ").textContent =
         angleZ.toFixed(2);
-
     }
 
   </script>
